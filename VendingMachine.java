@@ -3,12 +3,13 @@ import java.io.*;
 import java.net.*;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Scanner;
 
 public class VendingMachine {
     // Create a hash map
-    static HashMap itemNames;
-    static HashMap itemStock;
+    static HashMap<Integer, String> itemNames;
+    static HashMap<Integer, Integer> itemStock;
 
     public static void main(String[] args) throws Exception {
 
@@ -38,22 +39,41 @@ public class VendingMachine {
 
                 String messageFromClient = inFromClient.readLine();
                 //capitalizedSentence = clientSentence.toUpperCase() + '\n';
-                //outToClient.writeBytes(capitalizedSentence);
+                //
 
                 if (messageFromClient.equals("GET ITEM LIST")){
                     //The client wants the item list; give it to the client
-                    StringBuffer messageToClient = new StringBuffer();
+                    StringBuilder messageToClient = new StringBuilder("");
+
                     Iterator i = itemNames.entrySet().iterator();
 
                     while (i.hasNext()){
-                        messageFromClient.
+                        Map.Entry item = (Map.Entry)i.next();
+
+                        messageToClient.append(item.getKey() + " "
+                                            + itemNames.get(item.getKey()) + " "
+                                            + itemStock.get(item.getKey()) + "\r\n");
+
                     }
+                    messageToClient.append("\r\n");
+                    outToClient.writeBytes(messageToClient.toString());
 
                 }  else if (messageFromClient.equals("GET ITEM")){
                     //The client want to get an item. Give it to him
                     Scanner scan = new Scanner(inFromClient.readLine());
                     int itemID = scan.nextInt();
                     int itemCount = scan.nextInt();
+
+                    //if the item with this ID actually exists, and has stock more than requested
+                    if (itemStock.get(itemID) != null && itemStock.get(itemID) >= itemCount){
+                        //update the stock
+                        itemStock.put(itemID, itemStock.get(itemID) - itemCount);
+                        //send success message to client
+                        outToClient.writeBytes("SUCCESS\r\n");
+                    } else {
+                        outToClient.writeBytes("OUT OF STOCK\r\n");
+
+                    }
 
                 } else {
                     //The client sent a wrong message. Tell him how to send proper messages
