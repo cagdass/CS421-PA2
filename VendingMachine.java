@@ -36,7 +36,7 @@ public class VendingMachine {
                 Iterator i = itemNames.entrySet().iterator();
                 while(i.hasNext()){
                     Map.Entry item = (Map.Entry)i.next();
-                    System.out.println("\t"+item.getKey()+"\t"+itemNames.get(item.getKey())+"\t"+itemStock.get(item.getKey()));
+                    System.out.println(item.getKey()+" "+itemNames.get(item.getKey())+" "+itemStock.get(item.getKey()));
                 }
                 System.out.println();
                 System.out.print("Waiting for a client... ");
