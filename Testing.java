@@ -8,14 +8,14 @@ public class Testing {
 
 		// no arguments provided -- prompt to rerun again
 		if(al == 0){
-			System.out.println("Not enough arguments.\nusage: java VendingMachine [<IP_address>] <port_number>");
+			System.out.println("Not enough arguments.\nusage: java Testing [<IP_address>] <port_number>");
 		}
 		// if only the PORT NUMBER is provided then we're the server
 		else if(al == 1){
 			String clientSentence; 
 			String capitalizedSentence;
 
-			ServerSocket welcomeSocket = new ServerSocket(6789);
+			ServerSocket welcomeSocket = new ServerSocket(Integer.parseInt(args[0]));
 
 			while(true) {
 
@@ -38,7 +38,7 @@ public class Testing {
 			String sentence;
 			String modifiedSentence;
 			BufferedReader inFromUser = new BufferedReader(new InputStreamReader(System.in));
-			Socket clientSocket = new Socket("178.62.59.61", 6789);
+			Socket clientSocket = new Socket(args[0], Integer.parseInt(args[1]));
 			DataOutputStream outToServer = new DataOutputStream(clientSocket.getOutputStream());
 			BufferedReader inFromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
 
