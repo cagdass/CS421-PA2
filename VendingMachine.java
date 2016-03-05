@@ -128,7 +128,7 @@ public class VendingMachine {
             }
             catch(Exception e){
                 // print possible reasons and exit the program
-                System.out.println("Given hostname cannot be found, rerun after eliminating the following.\nPossible reasons:\tNo Internet connection.\tHostname leads to no server.");
+                // System.out.println("Given hostname cannot be found, rerun after eliminating the following.\nPossible reasons:\tNo Internet connection.\tHostname leads to no server.");
                 // System.exit(1);
                 e.printStackTrace();
             }
