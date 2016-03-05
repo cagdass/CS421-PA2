@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.InputMismatchException;
 
 public class VendingMachine{
+  //
   ServerSocket serverSocket = null;
   Socket clientSocket = null;
   Socket connection = null;
@@ -15,7 +16,7 @@ public class VendingMachine{
   String message = null;
   HashMap<Integer, String> itemNames = null;
   HashMap<Integer, Integer> itemStock = null;
-  HashMap<String, String> receivedItems;
+  HashMap<Integer, Integer> receivedItems = null;
 
   VendingMachine(){};
 
@@ -34,6 +35,7 @@ public class VendingMachine{
   }
 
   private void runClient(String args[]){
+    receivedItems = new HashMap<Integer, Integer>();
     try{
         clientSocket = new Socket(args[0], Integer.parseInt(args[1]));
         System.out.println("Connected to " + args[0] + " at port " + args[1] );
@@ -66,6 +68,10 @@ public class VendingMachine{
                     sendMessage("GET ITEM\r\n" + itemID + " " + itemRequestCount);
                     message = (String)in.readObject();
                     System.out.println("The received message:\n" + message);
+                    Scanner readLines = new Scanner(message);
+                    if (readLines.nextLine().equals("SUCCESS")){
+                      receivedItems.put(itemID, (receivedItems.get(itemID) != null) ? receivedItems.get(itemID) + itemRequestCount : itemRequestCount);
+                    }
                   }catch (InputMismatchException e){
                     System.out.println("Error: You did not enter an integer");
                   }
@@ -76,6 +82,7 @@ public class VendingMachine{
                 System.err.println("data received in unknown format");
             }
         }while(!userInput.equals("Q"));
+        System.out.println("The summary of received items:\n"+getReceivedItems());
     }
     catch(UnknownHostException unknownHost){
         System.err.println("You are trying to connect to an unknown host!");
@@ -117,7 +124,10 @@ public class VendingMachine{
                   try{
                     int itemID = readLines.nextInt();
                     int itemRequestCount = readLines.nextInt();
-                    if (itemStock.get(itemID) != null && itemStock.get(itemID) >= itemRequestCount){
+                    if (itemRequestCount <= 0){
+                      System.out.println("Send the message:\n" + "Error: Cannot request nonpositive quantity\r\n");
+                      sendMessage("Error: Cannot request nonpositive quantity\r\n");
+                    } else if (itemStock.get(itemID) != null && itemStock.get(itemID) >= itemRequestCount){
                       itemStock.put(itemID, itemStock.get(itemID) - itemRequestCount);
                       System.out.println("Send the message:\n" + "SUCCESS\r\n");
                       sendMessage("SUCCESS\r\n");
@@ -195,6 +205,17 @@ public class VendingMachine{
         itemList.append(item.getKey() + " "
                 + itemNames.get(item.getKey()) + " "
                 + itemStock.get(item.getKey()) + "\r\n");
+
+    }
+    return itemList.toString();
+  }
+  private String getReceivedItems(){
+    StringBuilder itemList = new StringBuilder("");
+    Iterator i = receivedItems.entrySet().iterator();
+    while (i.hasNext()){
+        Map.Entry item = (Map.Entry)i.next();
+        itemList.append(item.getKey() + " "
+                + receivedItems.get(item.getKey()) + "\r\n");
 
     }
     return itemList.toString();
