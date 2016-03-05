@@ -11,7 +11,7 @@ public class VendingMachine {
     static HashMap<Integer, String> itemNames;
     static HashMap<Integer, Integer> itemStock;
 
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args)  {
 
         int argCount = args.length;
 
@@ -25,59 +25,72 @@ public class VendingMachine {
 
             //get the port number
             int portNum = Integer.parseInt(args[0]);
-            ServerSocket welcomeSocket = new ServerSocket(portNum);
 
             //read item_list.txt file
             readItemList();
+            System.out.println("item list.txt is read");
+
             //Start getting client requests
             while(true) {
-
-                Socket connectionSocket = welcomeSocket.accept();
-                BufferedReader inFromClient = new BufferedReader(new InputStreamReader(connectionSocket.getInputStream()));
-                DataOutputStream outToClient = new DataOutputStream(connectionSocket.getOutputStream());
-
-
-                String messageFromClient = inFromClient.readLine();
-                //capitalizedSentence = clientSentence.toUpperCase() + '\n';
-                //
-
-                if (messageFromClient.equals("GET ITEM LIST")){
-                    //The client wants the item list; give it to the client
-                    StringBuilder messageToClient = new StringBuilder("");
-
-                    Iterator i = itemNames.entrySet().iterator();
-
-                    while (i.hasNext()){
-                        Map.Entry item = (Map.Entry)i.next();
-
-                        messageToClient.append(item.getKey() + " "
-                                            + itemNames.get(item.getKey()) + " "
-                                            + itemStock.get(item.getKey()) + "\r\n");
-
-                    }
-                    messageToClient.append("\r\n");
-                    outToClient.writeBytes(messageToClient.toString());
-
-                }  else if (messageFromClient.equals("GET ITEM")){
-                    //The client want to get an item. Give it to him
-                    Scanner scan = new Scanner(inFromClient.readLine());
-                    int itemID = scan.nextInt();
-                    int itemCount = scan.nextInt();
-
-                    //if the item with this ID actually exists, and has stock more than requested
-                    if (itemStock.get(itemID) != null && itemStock.get(itemID) >= itemCount){
-                        //update the stock
-                        itemStock.put(itemID, itemStock.get(itemID) - itemCount);
-                        //send success message to client
-                        outToClient.writeBytes("SUCCESS\r\n");
-                    } else {
-                        outToClient.writeBytes("OUT OF STOCK\r\n");
-
-                    }
-
-                } else {
-                    //The client sent a wrong message. Tell him how to send proper messages
+                System.out.println("The current list of items:");
+                Iterator i = itemNames.entrySet().iterator();
+                while(i.hasNext()){
+                    Map.Entry item = (Map.Entry)i.next();
+                    System.out.println("\t"+item.getKey()+"\t"+itemNames.get(item.getKey())+"\t"+itemStock.get(item.getKey()));
                 }
+                System.out.println();
+                System.out.print("Waiting for a client... ");
+                try {
+                    ServerSocket welcomeSocket = new ServerSocket(portNum);
+                    Socket connectionSocket = welcomeSocket.accept();
+                    BufferedReader inFromClient = new BufferedReader(new InputStreamReader(connectionSocket.getInputStream()));
+                    DataOutputStream outToClient = new DataOutputStream(connectionSocket.getOutputStream());
+
+                    System.out.println("A client has connected.");
+                    String messageFromClient = inFromClient.readLine();
+
+                    if (messageFromClient.equals("GET ITEM LIST")){
+                        //The client wants the item list; give it to the client
+                        StringBuilder messageToClient = new StringBuilder("ITEM LIST\r\n");
+                        i = itemNames.entrySet().iterator();
+                        while (i.hasNext()){
+                            Map.Entry item = (Map.Entry)i.next();
+
+                            messageToClient.append(item.getKey() + " "
+                                    + itemNames.get(item.getKey()) + " "
+                                    + itemStock.get(item.getKey()) + "\r\n");
+
+                        }
+                        messageToClient.append("\r\n");
+                        outToClient.writeBytes(messageToClient.toString());
+
+                    }  else if (messageFromClient.equals("GET ITEM")){
+                        //The client want to get an item. Give it to him
+                        Scanner scan = new Scanner(inFromClient.readLine());
+                        int itemID = scan.nextInt();
+                        int itemCount = scan.nextInt();
+
+                        //if the item with this ID actually exists, and has stock more than requested
+                        if (itemStock.get(itemID) != null && itemStock.get(itemID) >= itemCount){
+                            //update the stock
+                            itemStock.put(itemID, itemStock.get(itemID) - itemCount);
+                            //send success message to client
+                            outToClient.writeBytes("SUCCESS\r\n");
+                        } else {
+                            outToClient.writeBytes("OUT OF STOCK\r\n");
+
+                        }
+
+                    } else {
+                        //The client sent a wrong message. Tell him how to send proper messages
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    System.out.println("The client has terminated the connection.");
+
+                }
+
+
             }
         }
         else if(argCount == 2){
