@@ -1,0 +1,4 @@
+101 cola 15
+102 diet-cola 8
+103 chocolate 12
+104 potato-chip 4
