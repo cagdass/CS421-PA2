@@ -11,6 +11,9 @@ public class VendingMachine {
     static HashMap<Integer, String> itemNames;
     static HashMap<Integer, Integer> itemStock;
 
+    // hashmap to keep track of the received items
+    static HashMap<String, String> receivedItems;
+
     public static void main(String[] args)  {
 
         int argCount = args.length;
@@ -105,23 +108,140 @@ public class VendingMachine {
         }
         else if(argCount == 2){
 
-            String sentence;
-            String modifiedSentence;
+            // variables for client's request and server's reply
+            String reply = "";
+            String request = "";
+            String userInput = "";
+
+
             BufferedReader inFromUser = new BufferedReader(new InputStreamReader(System.in));
-            Socket clientSocket = new Socket(args[0], Integer.parseInt(args[1]));
-            DataOutputStream outToServer = new DataOutputStream(clientSocket.getOutputStream());
-            BufferedReader inFromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
 
-            // get user input
-            System.out.println("Enter line: ");
-            sentence = inFromUser.readLine();
+            // initialize client socket to be null initially and initialize it while handling exceptions to avoid program from crashing
+            Socket clientSocket = null;
+            DataOutputStream outToServer = null;
+            BufferedReader inFromServer = null;
 
-            outToServer.writeBytes(sentence + '\n');
+            try{
+                clientSocket = new Socket(args[0], Integer.parseInt(args[1]));
+                outToServer = new DataOutputStream(clientSocket.getOutputStream());
+                inFromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+            }
+            catch(Exception e){
+                // print possible reasons and exit the program
+                System.out.println("Given hostname cannot be found, rerun after eliminating the following.\nPossible reasons:\tNo Internet connection.\tHostname leads to no server.");
+                // System.exit(1);
+                e.printStackTrace();
+            }
 
-            modifiedSentence = inFromServer.readLine();
+            
 
-            System.out.println("FROM SERVER: " + modifiedSentence);
-            clientSocket.close();
+            System.out.println("The connection is established.");
+
+            while (true){
+
+
+                System.out.print("Choose a message type (GET ITEM (L)IST, (G)ET ITEM, (Q)UIT: ");
+
+                // get the user input - and convert to uppercase to accept lowercase commands as well;
+                try{
+                    userInput = inFromUser.readLine().toUpperCase();
+                }
+                catch(IOException e){
+                    e.printStackTrace();
+                    System.out.println("IOException");
+                }
+
+                // the request is to get the item list
+                if(userInput.equals("L")){
+                    
+                    request = "GET ITEM LIST\r\n\r\n";
+                    
+                    // send the request to the server
+                    try{
+                        outToServer.writeBytes(request);
+                    }
+                    catch(IOException e){
+                        e.printStackTrace();
+                        System.out.println("IOException");
+                    }
+                    System.out.println("The received message:");
+
+                    while(true){
+                        try{
+                            // did this whole block for tabs thingy might revert to inFromServer.toString()
+                            System.out.print(inFromServer.readLine());
+                        }
+                        catch(Exception e){
+                            break;
+                        }
+                    }
+                }
+                // the request is to get a specific item, append the item id and quantity to the request
+                else if(userInput.equals("G")){
+                    
+                    // item id and quantity to be added to the request
+                    String id = "";
+                    String quantity = "";
+
+                    System.out.print("Give the item id: ");
+                    try{
+                        id = inFromUser.readLine();
+                    }
+                    catch(IOException e){
+                        e.printStackTrace();
+                        System.out.println("IOException");
+                    }
+                    System.out.print("Give the number of items: ");
+                    try{
+                        quantity = inFromUser.readLine();
+                    }
+                    catch(IOException e){
+                        e.printStackTrace();
+                        System.out.println("IOException");
+                    }
+
+                    request = "GET ITEM\r\n" + id + " " + quantity + "\r\n\r\n";
+                    
+                    // send the request to the server
+                    try{
+                        outToServer.writeBytes(request);
+                    }
+                    catch(IOException e){
+                        e.printStackTrace();
+                        System.out.println("IOException");
+                    }
+
+                    System.out.println("The received message:");
+
+                    try{
+                        reply = inFromServer.readLine();    
+                    }
+                    catch(IOException e){
+                        e.printStackTrace();
+                        System.out.println("IOException");
+                    }
+                    
+                    System.out.println(reply);
+                    if(reply.equals("SUCCESS")){
+                        receivedItems.put(id, quantity);
+                    }
+                }
+                else if(userInput.equals("Q")){
+                    System.out.println("The summary of received items: ");
+                    Iterator i = receivedItems.entrySet().iterator();
+                    while(i.hasNext()){
+                        Map.Entry item = (Map.Entry)i.next();
+                        System.out.println(item.getKey() + " " + item.getValue());
+                    }
+                    break;
+                }
+                else{
+                    System.out.println("Your input does not match L, G or Q.");
+                    continue;
+                }
+
+
+            }
         }
         else{
             System.out.println("Too many arguments.\nUsage: java VendingMachine [<IP_address>] <port_number>");
