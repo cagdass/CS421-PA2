@@ -49,7 +49,11 @@ public class VendingMachine {
                     System.out.println("A client has connected.");
                     String messageFromClient = inFromClient.readLine();
 
+                    System.out.println("The received message:");
+                    System.out.println(messageFromClient.toString());
+
                     if (messageFromClient.equals("GET ITEM LIST")){
+
                         //The client wants the item list; give it to the client
                         StringBuilder messageToClient = new StringBuilder("ITEM LIST\r\n");
                         i = itemNames.entrySet().iterator();
@@ -62,6 +66,8 @@ public class VendingMachine {
 
                         }
                         messageToClient.append("\r\n");
+                        System.out.println("Send the message:");
+                        System.out.println(messageToClient.toString());
                         outToClient.writeBytes(messageToClient.toString());
 
                     }  else if (messageFromClient.equals("GET ITEM")){
@@ -75,8 +81,12 @@ public class VendingMachine {
                             //update the stock
                             itemStock.put(itemID, itemStock.get(itemID) - itemCount);
                             //send success message to client
+                            System.out.println("Send the message:");
+                            System.out.println("SUCCESS\r\n");
                             outToClient.writeBytes("SUCCESS\r\n");
                         } else {
+                            System.out.println("Send the message:");
+                            System.out.println("OUT OF STOCK\r\n");
                             outToClient.writeBytes("OUT OF STOCK\r\n");
 
                         }
