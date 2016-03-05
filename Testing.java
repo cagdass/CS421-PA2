@@ -1,7 +1,7 @@
 import java.io.*; 
 import java.net.*;
 
-public class VendingMachine {
+public class Testing {
 	public static void main(String[] args) throws Exception {
 
 		int al = args.length;
