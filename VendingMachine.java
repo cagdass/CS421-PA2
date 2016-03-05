@@ -1,290 +1,259 @@
-//Main and only class
 import java.io.*;
 import java.net.*;
+import java.util.Scanner;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Scanner;
+import java.util.InputMismatchException;
 
-public class VendingMachine {
-    // Create a hash map
-    static HashMap<Integer, String> itemNames;
-    static HashMap<Integer, Integer> itemStock;
+public class VendingMachine{
+  //Local varialbles that will be used by either the client and/or the server
+  //Will be used by client instantiations only
+  Socket clientSocket = null;
+  HashMap<Integer, Integer> receivedItems = null;
+  //Will be used by server instantiations only
+  ServerSocket serverSocket = null;
+  HashMap<Integer, String> itemNames = null;
+  HashMap<Integer, Integer> itemStock = null;
+  //Will be used by both client and server instantiations
+  Socket connection = null;
+  ObjectOutputStream out = null;
+  ObjectInputStream in = null;
+  String message = null;
 
-    // hashmap to keep track of the received items
-    static HashMap<String, String> receivedItems;
+  //Empty constuctor
+  VendingMachine(){};
 
-    public static void main(String[] args)  {
+  public static void main(String args[]){
+    //This will be a client
+    if (args.length == 2){
+      VendingMachine client = new VendingMachine();
+      client.runClient(args);
+    }
+    //This will be a server
+    else if (args.length == 1){
+      VendingMachine server = new VendingMachine();
+      //Read the inventory from the text file
+      server.readItemList();
+      //Keep on running
+      while (true)
+        server.runServer(args);
+    }
+    //Give an error message and show the correct usage
+    else {
+      System.out.println("Usage: java VendingMachine [IP Address] <port>");
+    }
+  }
 
-        int argCount = args.length;
-
-        // no arguments provided -- prompt to rerun again
-        if(argCount < 1){
-            System.out.println("Not enough arguments.\nUsage: java Testing [<IP_address>] <port_number>");
-        }
-
-        // if only the PORT NUMBER is provided then we're the server
-        else if(argCount == 1){
-
-            //get the port number
-            int portNum = Integer.parseInt(args[0]);
-
-            //read item_list.txt file
-            readItemList();
-            System.out.println("item list.txt is read");
-
-            //Start getting client requests
-            while(true) {
-                System.out.println("The current list of items:");
-                Iterator i = itemNames.entrySet().iterator();
-                while(i.hasNext()){
-                    Map.Entry item = (Map.Entry)i.next();
-                    System.out.println(item.getKey()+" "+itemNames.get(item.getKey())+" "+itemStock.get(item.getKey()));
-                }
-                System.out.println();
-                System.out.print("Waiting for a client... ");
-                try {
-                    ServerSocket welcomeSocket = new ServerSocket(portNum);
-                    Socket connectionSocket = welcomeSocket.accept();
-                    BufferedReader inFromClient = new BufferedReader(new InputStreamReader(connectionSocket.getInputStream()));
-                    DataOutputStream outToClient = new DataOutputStream(connectionSocket.getOutputStream());
-
-                    System.out.println("A client has connected.");
-                    String messageFromClient = inFromClient.readLine();
-
-                    if(messageFromClient == null){
-                        System.out.println("The client has terminated the connection.");
-                        continue;
-                    }
-
-                    System.out.println("The received message:");
-                    System.out.println(messageFromClient.toString());
-
-                    if (messageFromClient.equals("GET ITEM LIST")){
-
-                        //The client wants the item list; give it to the client
-                        StringBuilder messageToClient = new StringBuilder("ITEM LIST\r\n");
-                        i = itemNames.entrySet().iterator();
-                        while (i.hasNext()){
-                            Map.Entry item = (Map.Entry)i.next();
-
-                            messageToClient.append(item.getKey() + " "
-                                    + itemNames.get(item.getKey()) + " "
-                                    + itemStock.get(item.getKey()) + "\r\n");
-
-                        }
-                        messageToClient.append("\r\n");
-                        System.out.println("Send the message:");
-                        System.out.println(messageToClient.toString());
-                        outToClient.writeBytes(messageToClient.toString());
-
-                    }  else if (messageFromClient.equals("GET ITEM")){
-                        //The client want to get an item. Give it to him
-                        Scanner scan = new Scanner(inFromClient.readLine());
-                        int itemID = scan.nextInt();
-                        int itemCount = scan.nextInt();
-
-                        //if the item with this ID actually exists, and has stock more than requested
-                        if (itemStock.get(itemID) != null && itemStock.get(itemID) >= itemCount){
-                            //update the stock
-                            itemStock.put(itemID, itemStock.get(itemID) - itemCount);
-                            //send success message to client
-                            System.out.println("Send the message:");
-                            System.out.println("SUCCESS\r\n");
-                            outToClient.writeBytes("SUCCESS\r\n");
-                        } else {
-                            System.out.println("Send the message:");
-                            System.out.println("OUT OF STOCK\r\n");
-                            outToClient.writeBytes("OUT OF STOCK\r\n");
-
-                        }
-
-                    } 
-                    else {
-                        //The client sent a wrong message. Tell him how to send proper messages
-                    }
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    System.out.println("The client has terminated the connection.");
-
-                }
-
-
+  //This will be the client main running method
+  private void runClient(String args[]){
+    //Initiate the HashMap
+    receivedItems = new HashMap<Integer, Integer>();
+    //This has to be in a try block to catch failed failed connection initiations or broken connections after they have started
+    try{
+        //First argument is the IP address, and second is the port number
+        clientSocket = new Socket(args[0], Integer.parseInt(args[1]));
+        //Now setup input and output steams
+        out = new ObjectOutputStream(clientSocket.getOutputStream());
+        out.flush();
+        in = new ObjectInputStream(clientSocket.getInputStream());
+        System.out.println("The connection is established.");
+        String userInput = "";
+        do{
+            System.out.print("Choose a message type (GET ITEM (L)IST, (G)ET ITEM, (Q)UIT):");
+            Scanner scan = new Scanner(System.in);
+            userInput = scan.nextLine();
+            //Check that user has entered one of the correct options
+            if (!(userInput.equals("L") || userInput.equals("G") || userInput.equals("Q"))){
+              System.out.println("'"+userInput+"'\nWrong usage! Try again");
+              continue;
             }
-        }
-        else if(argCount == 2){
-
-            // variables for client's request and server's reply
-            String reply = "";
-            String request = "";
-            String userInput = "";
-
-
-            BufferedReader inFromUser = new BufferedReader(new InputStreamReader(System.in));
-
-            // initialize client socket to be null initially and initialize it while handling exceptions to avoid program from crashing
-            Socket clientSocket = null;
-            DataOutputStream outToServer = null;
-            BufferedReader inFromServer = null;
-
+            //catches when the received message is not in a String class format
             try{
-                clientSocket = new Socket(args[0], Integer.parseInt(args[1]));
-                outToServer = new DataOutputStream(clientSocket.getOutputStream());
-                inFromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-            }
-            catch(Exception e){
-                // print possible reasons and exit the program
-                // System.out.println("Given hostname cannot be found, rerun after eliminating the following.\nPossible reasons:\tNo Internet connection.\tHostname leads to no server.");
-                // System.exit(1);
-                e.printStackTrace();
-            }
-
-            
-
-            System.out.println("The connection is established.");
-
-            while (true){
-
-
-                System.out.print("Choose a message type (GET ITEM (L)IST, (G)ET ITEM, (Q)UIT: ");
-
-                // get the user input - and convert to uppercase to accept lowercase commands as well;
-                try{
-                    userInput = inFromUser.readLine().toUpperCase();
-                }
-                catch(IOException e){
-                    e.printStackTrace();
-                    System.out.println("IOException");
-                }
-
-                // the request is to get the item list
-                if(userInput.equals("L")){
-                    
-                    request = "GET ITEM LIST\r\n\r\n";
-                    
-                    // send the request to the server
-                    try{
-                        outToServer.writeBytes(request);
-                    }
-                    catch(IOException e){
-                        e.printStackTrace();
-                        System.out.println("IOException");
-                    }
-                    System.out.println("The received message:");
-
-                    while(true){
-                        try{
-                            // did this whole block for tabs thingy might revert to inFromServer.toString()
-                            System.out.print(inFromServer.readLine());
-                        }
-                        catch(Exception e){
-                            break;
-                        }
-                    }
-                }
-                // the request is to get a specific item, append the item id and quantity to the request
-                else if(userInput.equals("G")){
-                    
-                    // item id and quantity to be added to the request
-                    String id = "";
-                    String quantity = "";
-
+                if (userInput.equals("L")){
+                  //send request to server
+                  sendMessage("GET ITEM LIST\r\n");
+                  //wait until server replies
+                  message = (String)in.readObject();
+                  System.out.println("The received message:\n" + message);
+                } else if (userInput.equals("G")){
+                  //This catches if the user enters non-integer values
+                  try{
                     System.out.print("Give the item id: ");
-                    try{
-                        id = inFromUser.readLine();
-                    }
-                    catch(IOException e){
-                        e.printStackTrace();
-                        System.out.println("IOException");
-                    }
+                    //what if the scan still has leftover lines cuz a stupid user or a good tester put multiple lines as input somehow! So it is better to re-initalize scan
+                    scan = new Scanner(System.in);
+                    int itemID = scan.nextInt();
                     System.out.print("Give the number of items: ");
-                    try{
-                        quantity = inFromUser.readLine();
+                    int itemRequestCount = scan.nextInt();
+                    //Send user's request to server
+                    sendMessage("GET ITEM\r\n" + itemID + " " + itemRequestCount);
+                    //wait for server's reply
+                    message = (String)in.readObject();
+                    System.out.println("The received message:\n" + message);
+                    //Use a Scanner object to get rid of line delimiters
+                    Scanner readLines = new Scanner(message);
+                    //if the requested items were vended successfully, then add their quantity to the receivedItems HashMap
+                    if (readLines.nextLine().equals("SUCCESS")){
+                      receivedItems.put(itemID, (receivedItems.get(itemID) != null) ? receivedItems.get(itemID) + itemRequestCount : itemRequestCount);
                     }
-                    catch(IOException e){
-                        e.printStackTrace();
-                        System.out.println("IOException");
-                    }
+                  } catch (InputMismatchException e){
+                    System.out.println("Error: You did not enter an integer");
+                  }
 
-                    request = "GET ITEM\r\n" + id + " " + quantity + "\r\n\r\n";
-                    
-                    // send the request to the server
-                    try{
-                        outToServer.writeBytes(request);
-                    }
-                    catch(IOException e){
-                        e.printStackTrace();
-                        System.out.println("IOException");
-                    }
-
-                    System.out.println("The received message:");
-
-                    try{
-                        reply = inFromServer.readLine();    
-                    }
-                    catch(IOException e){
-                        e.printStackTrace();
-                        System.out.println("IOException");
-                    }
-                    
-                    System.out.println(reply);
-                    if(reply.equals("SUCCESS")){
-                        receivedItems.put(id, quantity);
-                    }
                 }
-                else if(userInput.equals("Q")){
-                    System.out.println("The summary of received items: ");
-                    Iterator i = null;
-                    if (receivedItems != null)
-                        i = receivedItems.entrySet().iterator();
-                    if (i != null){
-                        while(i.hasNext()){
-                            Map.Entry item = (Map.Entry)i.next();
-                            System.out.println(item.getKey() + " " + item.getValue());
-                        }    
-                    }
-                    
-                    break;
-                }
-                else{
-                    System.out.println("Your input does not match L, G or Q.");
-                    continue;
-                }
+            }
+            catch(ClassNotFoundException classNot){
+                System.err.println("Error: Data received was not in a String class format");
+            }
+        }while(!userInput.equals("Q"));
+        //Print the list of receivedItems before quitting
+        System.out.println("The summary of received items:\n"+getReceivedItems());
+    }
+    catch(UnknownHostException unknownHost){
+        System.err.println("You are trying to connect to an unknown host!");
+    }
+    catch(IOException ioException){
+        ioException.printStackTrace();
+    }
+    //Of course, make sure connections are closed
+    finally{
+        try{
+            in.close();
+            out.close();
+            clientSocket.close();
+        }
+        catch(IOException ioException){
+            ioException.printStackTrace();
+        }
+    }
+  }
 
+  //This will be run by the server
+  private void runServer(String args[]){
+    //First print the list of items in the stock currently
+    System.out.println("The current list of items:\n" + getItemList());
+    //Catch if client terminated the connection
+    try{
+        serverSocket = new ServerSocket(Integer.parseInt(args[0]));
+        System.out.print("Waiting for client... ");
+        //Setup in and out streams
+        connection = serverSocket.accept();
+        out = new ObjectOutputStream(connection.getOutputStream());
+        out.flush();
+        in = new ObjectInputStream(connection.getInputStream());
+        System.out.println("A client is connected.");
+        //Keep on serving this client until an exception due terminating the connection is thrown
+        do{
+            try{
+                //Get the request from the client
+                message = (String)in.readObject();
+                System.out.println("The received message:\n" + message);
+                //Use a Scanner object to get rid of line delimiters
+                Scanner readLines = new Scanner(message);
+                String request = readLines.nextLine();
+                if (request.equals("GET ITEM LIST")){
+                  sendMessage(getItemList());
+                } else if (request.equals("GET ITEM")){
+                  //Check that the ID and quantity requested are integers. If not then catch the exception and send the client an error message
+                  try{
+                    int itemID = readLines.nextInt();
+                    int itemRequestCount = readLines.nextInt();
+                    //Don't accept negative or zero quantities
+                    if (itemRequestCount <= 0){
+                      System.out.println("Send the message:\n" + "Error: Cannot request nonpositive quantity\r\n");
+                      sendMessage("Error: Cannot request nonpositive quantity\r\n");
+                    }
+                    //Check if the item is in the stock and that there is enough availability
+                    else if (itemStock.get(itemID) != null && itemStock.get(itemID) >= itemRequestCount){
+                      itemStock.put(itemID, itemStock.get(itemID) - itemRequestCount);
+                      System.out.println("Send the message:\n" + "SUCCESS\r\n");
+                      sendMessage("SUCCESS\r\n");
+                    } else {
+                      System.out.println("Send the message:\n" + "OUT OF STOCK\r\n");
+                      sendMessage("OUT OF STOCK\r\n");
+                    }
+                  } catch (InputMismatchException e){
+                      System.out.println("Error: Cannot extract item integer values");
+                      sendMessage("Bad request content: Cannont parse integer values of items\r\n");
+                  }
+
+                } else {
+                  //ERROR
+                  sendMessage("Bad request header\r\n");
+                }
 
             }
-        }
-        else{
-            System.out.println("Too many arguments.\nUsage: java VendingMachine [<IP_address>] <port_number>");
-        }
-
-
-
-
-    }
-
-    private static void readItemList() {
-        File itemListFile = new File("item_list.txt");
-
-        try {
-            Scanner scan = new Scanner(itemListFile);
-            itemNames = new HashMap();
-            itemStock = new HashMap();
-            while(scan.hasNext()){
-
-                int id = scan.nextInt();
-                String name = scan.next();
-                int stock = scan.nextInt();
-                itemNames.put(new Integer(id), name);
-                itemStock.put(new Integer(id), new Integer(stock));
-
+            catch(ClassNotFoundException classnot){
+                System.err.println("Data received in unknown format");
             }
-            scan.close();
-
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
+        }while(true);
+    }
+    catch(IOException ioException){
+        System.out.println("The client has terminated the connection.");
+        //ioException.printStackTrace();
+    }
+    // And close the connections of course
+    finally{
+        try{
+            in.close();
+            out.close();
+            serverSocket.close();
         }
+        catch(IOException ioException){
+            ioException.printStackTrace();
+        }
+    }
+  }
+  //A generic message sending method for both client and server
+  void sendMessage(String message) throws IOException{
+    out.writeObject(message);
+    out.flush();
+  }
+  //This is a helper method for the server
+  private void readItemList() {
+      File itemListFile = new File("item_list.txt");
+      try {
+          Scanner scan = new Scanner(itemListFile);
+          itemNames = new HashMap<Integer, String>();
+          itemStock = new HashMap<Integer, Integer>();
+          while(scan.hasNext()){
+              int id = scan.nextInt();
+              String name = scan.next();
+              int stock = scan.nextInt();
+              itemNames.put(new Integer(id), name);
+              itemStock.put(new Integer(id), new Integer(stock));
+          }
+          scan.close();
+      } catch (FileNotFoundException e) {
+          e.printStackTrace();
+      }
+
+  }
+
+  //This is a helper method for the server
+  private String getItemList(){
+    StringBuilder itemList = new StringBuilder("");
+    Iterator i = itemNames.entrySet().iterator();
+    while (i.hasNext()){
+        Map.Entry item = (Map.Entry)i.next();
+        itemList.append(item.getKey() + " "
+                + itemNames.get(item.getKey()) + " "
+                + itemStock.get(item.getKey()) + "\r\n");
 
     }
+    return itemList.toString();
+  }
+
+  //This is a helper method for the client
+  private String getReceivedItems(){
+    StringBuilder itemList = new StringBuilder("");
+    Iterator i = receivedItems.entrySet().iterator();
+    while (i.hasNext()){
+        Map.Entry item = (Map.Entry)i.next();
+        itemList.append(item.getKey() + " "
+                + receivedItems.get(item.getKey()) + "\r\n");
+
+    }
+    return itemList.toString();
+  }
 }
-
