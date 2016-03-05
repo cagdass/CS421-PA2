@@ -52,6 +52,11 @@ public class VendingMachine {
                     System.out.println("A client has connected.");
                     String messageFromClient = inFromClient.readLine();
 
+                    if(messageFromClient == null){
+                        System.out.println("The client has terminated the connection.");
+                        continue;
+                    }
+
                     System.out.println("The received message:");
                     System.out.println(messageFromClient.toString());
 
@@ -94,7 +99,8 @@ public class VendingMachine {
 
                         }
 
-                    } else {
+                    } 
+                    else {
                         //The client sent a wrong message. Tell him how to send proper messages
                     }
                 } catch (IOException e) {
@@ -228,11 +234,16 @@ public class VendingMachine {
                 }
                 else if(userInput.equals("Q")){
                     System.out.println("The summary of received items: ");
-                    Iterator i = receivedItems.entrySet().iterator();
-                    while(i.hasNext()){
-                        Map.Entry item = (Map.Entry)i.next();
-                        System.out.println(item.getKey() + " " + item.getValue());
+                    Iterator i = null;
+                    if (receivedItems != null)
+                        i = receivedItems.entrySet().iterator();
+                    if (i != null){
+                        while(i.hasNext()){
+                            Map.Entry item = (Map.Entry)i.next();
+                            System.out.println(item.getKey() + " " + item.getValue());
+                        }    
                     }
+                    
                     break;
                 }
                 else{
