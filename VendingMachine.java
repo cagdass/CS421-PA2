@@ -72,7 +72,7 @@ public class VendingMachine{
             try{
                 if (userInput.equals("L")){
                   //send request to server
-                  sendMessage("GET ITEM LIST\r\n");
+                  sendMessage("GET ITEM LIST\r\n\r\n");
                   //wait until server replies
                   message = (String)in.readObject();
                   System.out.println("The received message:\n" + message);
@@ -86,7 +86,7 @@ public class VendingMachine{
                     System.out.print("Give the number of items: ");
                     int itemRequestCount = scan.nextInt();
                     //Send user's request to server
-                    sendMessage("GET ITEM\r\n" + itemID + " " + itemRequestCount);
+                    sendMessage("GET ITEM\r\n" + itemID + " " + itemRequestCount + "\r\n\r\n");
                     //wait for server's reply
                     message = (String)in.readObject();
                     System.out.println("The received message:\n" + message);
@@ -152,6 +152,8 @@ public class VendingMachine{
                 Scanner readLines = new Scanner(message);
                 String request = readLines.nextLine();
                 if (request.equals("GET ITEM LIST")){
+                  // Print sent message
+                  System.out.print("Send the message:\n" + "ITEM LIST\r\n" + getItemList() + "\r\n");
                   sendMessage(getItemList());
                 } else if (request.equals("GET ITEM")){
                   //Check that the ID and quantity requested are integers. If not then catch the exception and send the client an error message
@@ -160,20 +162,20 @@ public class VendingMachine{
                     int itemRequestCount = readLines.nextInt();
                     //Don't accept negative or zero quantities
                     if (itemRequestCount <= 0){
-                      System.out.println("Send the message:\n" + "Error: Cannot request nonpositive quantity\r\n");
+                      System.out.print("Send the message:\n" + "Error: Cannot request nonpositive quantity\r\n");
                       sendMessage("Error: Cannot request nonpositive quantity\r\n");
                     }
                     //Check if the item is in the stock and that there is enough availability
                     else if (itemStock.get(itemID) != null && itemStock.get(itemID) >= itemRequestCount){
                       itemStock.put(itemID, itemStock.get(itemID) - itemRequestCount);
-                      System.out.println("Send the message:\n" + "SUCCESS\r\n");
-                      sendMessage("SUCCESS\r\n");
+                      System.out.print("Send the message:\n" + "SUCCESS\r\n\r\n");
+                      sendMessage("SUCCESS\r\n\r\n");
                     } else {
-                      System.out.println("Send the message:\n" + "OUT OF STOCK\r\n");
-                      sendMessage("OUT OF STOCK\r\n");
+                      System.out.print("Send the message:\n" + "OUT OF STOCK\r\n\r\n");
+                      sendMessage("OUT OF STOCK\r\n\r\n");
                     }
                   } catch (InputMismatchException e){
-                      System.out.println("Error: Cannot extract item integer values");
+                      System.out.print("Error: Cannot extract item integer values");
                       sendMessage("Bad request content: Cannont parse integer values of items\r\n");
                   }
 
@@ -232,7 +234,7 @@ public class VendingMachine{
 
   //This is a helper method for the server
   private String getItemList(){
-    StringBuilder itemList = new StringBuilder("");
+    StringBuilder itemList = new StringBuilder("ITEM LIST\r\n");
     Iterator i = itemNames.entrySet().iterator();
     while (i.hasNext()){
         Map.Entry item = (Map.Entry)i.next();
@@ -241,6 +243,7 @@ public class VendingMachine{
                 + itemStock.get(item.getKey()) + "\r\n");
 
     }
+    itemList.append("\r\n");
     return itemList.toString();
   }
 
