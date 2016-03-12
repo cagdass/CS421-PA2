@@ -153,7 +153,7 @@ public class VendingMachine{
                 String request = readLines.nextLine();
                 if (request.equals("GET ITEM LIST")){
                   // Print sent message
-                  System.out.print("Send the message:\n" + "ITEM LIST\r\n" + getItemList() + "\r\n");
+                  System.out.print("Send the message:\n" + getItemList() + "\r\n");
                   sendMessage(getItemList());
                 } else if (request.equals("GET ITEM")){
                   //Check that the ID and quantity requested are integers. If not then catch the exception and send the client an error message
