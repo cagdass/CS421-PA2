@@ -1,6 +1,7 @@
 import java.io.*;
 import java.net.*;
 import java.util.Scanner;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -26,6 +27,7 @@ public class VendingMachine implements Runnable{
   static int numOfThreads = 0;
   //Number of maximum threads allowed
   final int MAX_NUM_OF_THREADS = 3;
+  static ArrayList<Integer> threadIds = new ArrayList<Integer>();
 
   //A constructor to VendingMachine that takes the established connection's socket as parameter to reuse it
   VendingMachine(Socket connection){
@@ -145,7 +147,11 @@ public class VendingMachine implements Runnable{
 
   //This will be run by the server
   private void runServer(String args[]) throws Exception{
-    //Create an array of threads for each thread to handle a client
+    //Put -1 for all the locations corresponding to the thread id's. Meaning, the there is no thread at that index.
+    for(int i = 0; i < MAX_NUM_OF_THREADS; i++){
+      threadIds.add(-1);
+    }
+
     try{
       serverSocket = new ServerSocket(Integer.parseInt(args[0]));
       //A slight modification here: Print the items after the server is established on the given port
@@ -153,19 +159,51 @@ public class VendingMachine implements Runnable{
       System.out.println("The current list of items:\n" + getItemList());
       System.out.print("Waiting for client... ");
       //Setup in and out streams
+
       while(true){
           //Wait while current number of threads is greater than or equal to the number of allowed threads
           while(numOfThreads >= MAX_NUM_OF_THREADS){
             try{
+              //Sleep while waiting
               Thread.sleep(10);
             }
             catch(Exception e){
 
             }
           }
+          //Index of the THREAD we're waiting for (just for output formatting really)
+          int index = -1;
+          for(int i = 0; i < MAX_NUM_OF_THREADS; i++){
+            if(threadIds.get(i) == -1){
+              //We will print this index for the connected client's identifier
+              index = i;
+              break;
+            }
+          }
+          if(index != -1){
+              System.out.println("Listening for client on THREAD" + (index + 1));
+          }
+          else{
+              System.out.println("Maximum number of threads have been reached (for the time being)");
+          }
+
+
           //Accept a connection from a client and print on the console
           connection = serverSocket.accept();
-          System.out.println("A client is connected.");
+          //Index of the THREAD we're waiting for (just for output formatting really)
+          index = -1;
+          for(int i = 0; i < MAX_NUM_OF_THREADS; i++){
+            if(threadIds.get(i) == -1){
+              //We will print this index for the connected client's identifier
+              index = i;
+              //But this time, we know there is a new connection so we modify the value.
+              //Set the first empty location's value to -2, which will be filled with the value of the thread's id
+              //When the thread takes it over
+              threadIds.set(i, -2);
+              break;
+            }
+          }
+          System.out.println("****************************************\nA client is connected on THREAD" + (index + 1));
           //Create a thread to run the concurrent part of the program for the given connection from a client
           new Thread(new VendingMachine(connection)).start();
           //And continue waiting for other connections in the loop, while there may be active threads or not
@@ -192,8 +230,23 @@ public class VendingMachine implements Runnable{
   //This whole method is synchronized for the time being, we could try making it sychronized for only the shared variables
   //And see how it goes from there
   public synchronized void run(){
-      long threadId = Thread.currentThread().getId();
-      System.out.println("Hello from thread with id " + threadId);
+      //Get current thread's id
+      int threadId = (int)Thread.currentThread().getId();
+      int arrayIndex = -1;
+      //Put the current threadId in the threadId's array, to the first empty location
+      //So that we can print threads' numbers from 0 to n, independent of their threadId's
+      for(int i = 0; i < MAX_NUM_OF_THREADS; i++){
+        //Put the thread's id in this location if location has value -2, it was just modified by the server
+        if(threadIds.get(i) == -2){
+          //Put the current thread's id in the array's first empty location
+          threadIds.set(i, threadId);
+          //Save the array index for this thread
+          arrayIndex = i;
+          //No need to continue the loop
+          break;
+        }
+      }
+
       try {
       out = new ObjectOutputStream(connection.getOutputStream());
       out.flush();
@@ -204,7 +257,7 @@ public class VendingMachine implements Runnable{
           try{
               //Get the request from the client
               message = (String)in.readObject();
-              System.out.println("The received message:\n" + message);
+              System.out.println("****************************************\nMessage received on THREAD" + (arrayIndex+1) + ":\n" + message);
               //Use a Scanner object to get rid of line delimiters
               Scanner readLines = new Scanner(message);
               String request = readLines.nextLine();
@@ -253,8 +306,16 @@ public class VendingMachine implements Runnable{
 
       }
     }
+    //Empty this thread's (who's just about to finish) index in the array
+    //So that the first thread created after this thread is done, will have this thread's order number
+    //Example: If this is the second thread that is created and it exits now
+    //The next thread created after this thread exits will be called Thread 1
+    threadIds.set(arrayIndex, -1);
+    //Revert the value back to -1, completely empty for a new thread's id.
+    //Decrement the number of active threads
     numOfThreads--;
-    System.out.println("Thread ends");
+
+    System.out.println("THREAD" + (arrayIndex+1) + ": The client has terminated the connection.");
   }
 
   //A generic message sending method for both client and server
