@@ -156,7 +156,7 @@ public class VendingMachine implements Runnable{
       serverSocket = new ServerSocket(Integer.parseInt(args[0]));
       //A slight modification here: Print the items after the server is established on the given port
       //To disallow printing the item list and terminating because there is already another server on the same port
-      System.out.println("The current list of items:\n" + getItemList());
+      System.out.println("item list.txt is read\nThe current list of items:\n" + getItemList());
       System.out.print("Waiting for client... ");
       //Setup in and out streams
 
@@ -316,6 +316,7 @@ public class VendingMachine implements Runnable{
     numOfThreads--;
 
     System.out.println("THREAD" + (arrayIndex+1) + ": The client has terminated the connection.");
+    System.out.println("The current list of items:\n" + getItemList() + "\n**************************************");
   }
 
   //A generic message sending method for both client and server
