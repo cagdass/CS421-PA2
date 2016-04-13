@@ -230,13 +230,16 @@ public class VendingMachine implements Runnable{
   //This whole method is synchronized for the time being, we could try making it sychronized for only the shared variables
   //And see how it goes from there
   //probably we shouldn't though
-  public  void run(){
+  //Now only critical blocks will be synchronized to ensure "Liveliness" of the threads
+  public void run(){
       //Get current thread's id
 
       int threadId = (int)Thread.currentThread().getId();
       int arrayIndex = -1;
       //Put the current threadId in the threadId's array, to the first empty location
       //So that we can print threads' numbers from 0 to n, independent of their threadId's
+
+      //this part accesses the stock item list and needs to be synchronized accross threads
       synchronized(this){
         for(int i = 0; i < MAX_NUM_OF_THREADS; i++){
           //Put the thread's id in this location if location has value -2, it was just modified by the server
@@ -266,6 +269,7 @@ public class VendingMachine implements Runnable{
               //Use a Scanner object to get rid of line delimiters
               Scanner readLines = new Scanner(message);
               String request = readLines.nextLine();
+              //another critical region since it accesses the item stock
               synchronized(this){
                 if (request.equals("GET ITEM LIST")){
                   // Print sent message
@@ -318,6 +322,8 @@ public class VendingMachine implements Runnable{
     //So that the first thread created after this thread is done, will have this thread's order number
     //Example: If this is the second thread that is created and it exits now
     //The next thread created after this thread exits will be called Thread 1
+
+    //The last critical region that needs syncing
     synchronized(this){
       threadIds.set(arrayIndex, -1);
       //Revert the value back to -1, completely empty for a new thread's id.
