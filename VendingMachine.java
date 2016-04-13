@@ -239,7 +239,7 @@ public class VendingMachine implements Runnable{
       //Put the current threadId in the threadId's array, to the first empty location
       //So that we can print threads' numbers from 0 to n, independent of their threadId's
 
-      //this part accesses the stock item list and needs to be synchronized accross threads
+      //this part accesses the thread ID list and needs to be synchronized accross threads
       synchronized(this){
         for(int i = 0; i < MAX_NUM_OF_THREADS; i++){
           //Put the thread's id in this location if location has value -2, it was just modified by the server
