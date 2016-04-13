@@ -229,23 +229,28 @@ public class VendingMachine implements Runnable{
   //@TODO
   //This whole method is synchronized for the time being, we could try making it sychronized for only the shared variables
   //And see how it goes from there
-  public synchronized void run(){
+  //probably we shouldn't though
+  public  void run(){
       //Get current thread's id
+
       int threadId = (int)Thread.currentThread().getId();
       int arrayIndex = -1;
       //Put the current threadId in the threadId's array, to the first empty location
       //So that we can print threads' numbers from 0 to n, independent of their threadId's
-      for(int i = 0; i < MAX_NUM_OF_THREADS; i++){
-        //Put the thread's id in this location if location has value -2, it was just modified by the server
-        if(threadIds.get(i) == -2){
-          //Put the current thread's id in the array's first empty location
-          threadIds.set(i, threadId);
-          //Save the array index for this thread
-          arrayIndex = i;
-          //No need to continue the loop
-          break;
+      synchronized(this){
+        for(int i = 0; i < MAX_NUM_OF_THREADS; i++){
+          //Put the thread's id in this location if location has value -2, it was just modified by the server
+          if(threadIds.get(i) == -2){
+            //Put the current thread's id in the array's first empty location
+            threadIds.set(i, threadId);
+            //Save the array index for this thread
+            arrayIndex = i;
+            //No need to continue the loop
+            break;
+          }
         }
       }
+
 
       try {
       out = new ObjectOutputStream(connection.getOutputStream());
@@ -261,38 +266,41 @@ public class VendingMachine implements Runnable{
               //Use a Scanner object to get rid of line delimiters
               Scanner readLines = new Scanner(message);
               String request = readLines.nextLine();
-              if (request.equals("GET ITEM LIST")){
-                // Print sent message
-                System.out.print("Send the message:\n" + getItemList() + "\r\n");
-                sendMessage(getItemList());
-              } else if (request.equals("GET ITEM")){
-                //Check that the ID and quantity requested are integers. If not then catch the exception and send the client an error message
-                try{
-                  int itemID = readLines.nextInt();
-                  int itemRequestCount = readLines.nextInt();
-                  //Don't accept negative or zero quantities
-                  if (itemRequestCount <= 0){
-                    System.out.print("Send the message:\n" + "Error: Cannot request nonpositive quantity\r\n");
-                    sendMessage("Error: Cannot request nonpositive quantity\r\n");
+              synchronized(this){
+                if (request.equals("GET ITEM LIST")){
+                  // Print sent message
+                  System.out.print("Send the message:\n" + getItemList() + "\r\n");
+                  sendMessage(getItemList());
+                } else if (request.equals("GET ITEM")){
+                  //Check that the ID and quantity requested are integers. If not then catch the exception and send the client an error message
+                  try{
+                    int itemID = readLines.nextInt();
+                    int itemRequestCount = readLines.nextInt();
+                    //Don't accept negative or zero quantities
+                    if (itemRequestCount <= 0){
+                      System.out.print("Send the message:\n" + "Error: Cannot request nonpositive quantity\r\n");
+                      sendMessage("Error: Cannot request nonpositive quantity\r\n");
+                    }
+                    //Check if the item is in the stock and that there is enough availability
+                    else if (itemStock.get(itemID) != null && itemStock.get(itemID) >= itemRequestCount){
+                      itemStock.put(itemID, itemStock.get(itemID) - itemRequestCount);
+                      System.out.print("Send the message:\n" + "SUCCESS\r\n\r\n");
+                      sendMessage("SUCCESS\r\n\r\n");
+                    } else {
+                      System.out.print("Send the message:\n" + "OUT OF STOCK\r\n\r\n");
+                      sendMessage("OUT OF STOCK\r\n\r\n");
+                    }
+                  } catch (InputMismatchException e){
+                      System.out.print("Error: Cannot extract item integer values");
+                      sendMessage("Bad request content: Cannont parse integer values of items\r\n");
                   }
-                  //Check if the item is in the stock and that there is enough availability
-                  else if (itemStock.get(itemID) != null && itemStock.get(itemID) >= itemRequestCount){
-                    itemStock.put(itemID, itemStock.get(itemID) - itemRequestCount);
-                    System.out.print("Send the message:\n" + "SUCCESS\r\n\r\n");
-                    sendMessage("SUCCESS\r\n\r\n");
-                  } else {
-                    System.out.print("Send the message:\n" + "OUT OF STOCK\r\n\r\n");
-                    sendMessage("OUT OF STOCK\r\n\r\n");
-                  }
-                } catch (InputMismatchException e){
-                    System.out.print("Error: Cannot extract item integer values");
-                    sendMessage("Bad request content: Cannont parse integer values of items\r\n");
-                }
 
-              } else {
-                //ERROR
-                sendMessage("Bad request header\r\n");
+                } else {
+                  //ERROR
+                  sendMessage("Bad request header\r\n");
+                }
               }
+
 
           }
           catch(ClassNotFoundException classnot){
@@ -310,13 +318,16 @@ public class VendingMachine implements Runnable{
     //So that the first thread created after this thread is done, will have this thread's order number
     //Example: If this is the second thread that is created and it exits now
     //The next thread created after this thread exits will be called Thread 1
-    threadIds.set(arrayIndex, -1);
-    //Revert the value back to -1, completely empty for a new thread's id.
-    //Decrement the number of active threads
-    numOfThreads--;
+    synchronized(this){
+      threadIds.set(arrayIndex, -1);
+      //Revert the value back to -1, completely empty for a new thread's id.
+      //Decrement the number of active threads
+      numOfThreads--;
 
-    System.out.println("THREAD" + (arrayIndex+1) + ": The client has terminated the connection.");
-    System.out.println("The current list of items:\n" + getItemList() + "\n**************************************");
+      System.out.println("THREAD" + (arrayIndex+1) + ": The client has terminated the connection.");
+      System.out.println("The current list of items:\n" + getItemList() + "\n**************************************");
+    }
+
   }
 
   //A generic message sending method for both client and server
